@@ -2,73 +2,73 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const mysql = require('mysql');
 const dotenv = require('dotenv');
+const { PrismaClient } = require('@prisma/client');
 
 dotenv.config()
 
-const connection = mysql.createConnection({
-  host: "172.31.176.1",
-  user: "root",
-  password: process.env.PASSWORD,
-  database: "ngajarin"
-});
-
 const app = express();
+const prisma = new PrismaClient();
+
 app.use(bodyParser.json());
 
-app.post('/wishlists', (req, res) => {
+app.post('/wishlists', async (req, res) => {
   const { body } = req;
   if (body?.name && body?.url) {
-    const sql_command = `INSERT INTO wishlists (name, url) VALUES ('${body.name}', '${body.url}')`;
-    connection.query(sql_command, (error, result) => {
-      if (error) res.json(error);
-      console.log("successfully added 1 column");
-    });
+    const { name, url } = body;
+    await prisma.wishlists.create({
+      data: {
+        name,
+        url
+      }
+    })
     res.status(200).send();
   }
   res.status(400).send();
 })
 
-app.put('/wishlists/:index', (req, res) => {
+app.put('/wishlists/:index', async (req, res) => {
   const { index } = req.params;
   const { body } = req;
   if (body?.name && body?.url) {
-    const sql_command = `UPDATE wishlists SET name='${body.name}', url='${body.url}' WHERE id=${index}`;
-    connection.query(sql_command, (error, result) => {
-      if (error) res.json(error);
-      else {
-        console.log("successfully updated 1 column");
-        res.status(200).send();
+    const { name, url } = body;
+    await prisma.wishlists.update({
+      where: { id: index },
+      data: {
+        name,
+        url
       }
     });
+    res.status(200).send();
   } else {
     res.status(400).send();
   }
 })
 
-app.get('/wishlists', (req, res) => {
-  const sql_command = `SELECT * FROM wishlists`;
-  connection.query(sql_command, (error, result) => {
-    if (error) res.json(error);
-    res.json(result);
-  });
+app.get('/wishlists', async (req, res) => {
+  const wishlists = await prisma.wishlists.findMany()
+  res.json(wishlists);
 })
 
-app.get('/wishlists/:index', (req, res) => {
+app.get('/wishlists/:index', async (req, res) => {
   const { index } = req.params;
-  const sql_command = `SELECT * FROM wishlists where id=${index}`;
-  connection.query(sql_command, (error, result) => {
-    if (error) res.json(error);
-    res.json(result);
-  });
+  const wishlist = await prisma.wishlists.findUnique(
+    {
+      where: {
+        id: index
+      },
+    }
+  )
+  res.json(wishlist)
 })
 
-app.delete('/wishlists/:index', (req, res) => {
+app.delete('/wishlists/:index', async (req, res) => {
   const { index } = req.params;
-  const sql_command = `DELETE FROM wishlists where id=${index}`;
-  connection.query(sql_command, (error, result) => {
-    if (error) res.json(error);
-    res.status(200).send();
-  });
+  await prisma.wishlists.delete({
+    where: {
+      id: index
+    }
+  })
+  res.status(200).send()
 })
 
 app.listen(8080, () => {
